@@ -615,6 +615,161 @@ public:
 };
 
 
+class HomeWork {
+    string professor;
+    string TheNameOfClass;
+    vector<pair<string, int>> StudentOfClass;
+    string TheNameOfHomeWork;
+    string homework;
+
+public:
+    void addHomeWork(const string& professor, const string& className) {
+        ifstream classesFile("Classes.txt");
+        string line;
+        bool classExists = false;
+        bool inTargetClass = false;
+
+        // ????? ???? ???? ? ?????? ????? ????????? ?? ????
+        if (classesFile.is_open()) {
+            while (getline(classesFile, line)) {
+                if (line == "Professor: " + professor + " Class: " + className) {
+                    classExists = true;
+                    inTargetClass = true;
+                    this->professor = professor;
+                    this->TheNameOfClass = className;
+                    continue;
+                }
+
+                if (inTargetClass && line.find("Professor: ") != string::npos) {
+                    inTargetClass = false;
+                }
+
+                if (inTargetClass && line.find("Student: ") != string::npos) {
+                    string studentName;
+                    stringstream ss(line);
+                    ss.ignore(9); // Skip "Student: "
+                    ss >> studentName;
+                    StudentOfClass.push_back(make_pair(studentName, 0)); // initial grade set to 0
+                }
+            }
+            classesFile.close();
+
+            if (!classExists) {
+                cout << "Error: Class with provided professor and name not found." << endl;
+                return;
+            }
+        }
+        else {
+            cerr << "Error: Unable to open classes file for reading." << endl;
+            return;
+        }
+
+        // Get homework details
+        cout << "Enter the name of the homework: ";
+        cin.ignore(); // Clear the input buffer
+        getline(cin, TheNameOfHomeWork);
+
+        cout << "Enter the text of the homework: ";
+        getline(cin, homework);
+
+        // Add student names and grades
+        vector<pair<string, int>> enteredStudents;
+        while (true) {
+            cout << "Enter student name (or END to finish): ";
+            string studentName;
+            cin >> studentName;
+            if (studentName == "END") break;
+
+            bool studentExists = false;
+            for (const auto& student : StudentOfClass) {
+                if (student.first == studentName) {
+                    studentExists = true;
+                    break;
+                }
+            }
+
+            if (!studentExists) {
+                cout << "Error: Student not found in the class." << endl;
+                continue;
+            }
+
+            cout << "Enter grade for student " << studentName << ": ";
+            int grade;
+            cin >> grade;
+            enteredStudents.push_back(make_pair(studentName, grade));
+        }
+
+        // Append to homework file
+        ofstream homeworkFile("homework.txt", ios::app);
+        if (homeworkFile.is_open()) {
+            homeworkFile << "Professor: " << this->professor << endl;
+            homeworkFile << "Class: " << this->TheNameOfClass << endl;
+            homeworkFile << "Homework Name: " << TheNameOfHomeWork << endl;
+            homeworkFile << "Homework Text: " << homework << endl;
+
+            // Add student grades for the homework
+            for (const auto& student : enteredStudents) {
+                homeworkFile << "Student: " << student.first << " Grade: " << student.second << endl;
+            }
+
+            homeworkFile << "----------------------------------------" << endl;
+
+            homeworkFile.close();
+            cout << "Homework and grades saved successfully." << endl;
+        }
+        else {
+            cerr << "Error: Unable to open homework file for writing." << endl;
+        }
+    }
+
+    void printHomeworkDetails(const string& professor, const string& className, const string& homeworkName) {
+        ifstream homeworkFile("homework.txt");
+        string line;
+        bool classFound = false;
+        bool homeworkFound = false;
+        bool readingStudents = false;
+
+        if (homeworkFile.is_open()) {
+            while (getline(homeworkFile, line)) {
+                if (line == "Professor: " + professor && !classFound) {
+                    classFound = true;
+                }
+
+                if (classFound && line == "Class: " + className) {
+                    homeworkFound = true;
+                }
+
+                if (homeworkFound && line == "Homework Name: " + homeworkName) {
+                    readingStudents = true;
+                    cout << line << endl;
+                    continue;
+                }
+
+                if (readingStudents) {
+                    if (line.find("Student: ") != string::npos) {
+                        cout << line << endl;
+                    }
+                    else if (line.find("Professor: ") != string::npos) {
+                        break; // End of this homework section
+                    }
+                }
+            }
+
+            if (!classFound || !homeworkFound) {
+                cout << "Error: Class or homework not found." << endl;
+            }
+
+            homeworkFile.close();
+        }
+        else {
+            cerr << "Error: Unable to open homework file for reading." << endl;
+        }
+    }
+
+
+};
+
+
 
 
 int main() {
