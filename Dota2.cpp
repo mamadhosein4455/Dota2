@@ -191,6 +191,430 @@ private:
     }
 };
 
+class Darss {
+private:
+    string professor;
+    string TheNameOfClass;
+    vector<pair<string, int>> StudentOfClass;
+
+public:
+    void addClass(const string& username, const string& password, const string& className) {
+        // ????? ???? ????? ?? ???? accounts ? ??? ??
+        ifstream accountsFile("accounts.txt");
+        bool professorExists = false;
+
+        if (accountsFile.is_open()) {
+            string line;
+            while (getline(accountsFile, line)) {
+                stringstream ss(line);
+                string fileUname, filePwd;
+                int fileType;
+                ss >> fileUname >> filePwd >> fileType;
+
+                if (fileUname == username && filePwd == password && fileType == 2) {
+                    professorExists = true;
+                    professor = username;
+                    TheNameOfClass = className;
+                    break;
+                }
+            }
+            accountsFile.close();
+        }
+
+        if (!professorExists) {
+            cout << "Error: Professor with provided username and password not found." << endl;
+            return;
+        }
+
+        // ????? ??? ????? ? ??? ??? ?? ???? Classes
+        ofstream classesFile("Classes.txt", ios::app);
+        if (classesFile.is_open()) {
+            classesFile << "Professor: " << professor << " Class: " << TheNameOfClass << endl;
+
+            string studentName;
+            int grade;
+
+            while (true) {
+                cout << "Enter student name (or type 'END' to finish): ";
+                cin >> studentName;
+
+                if (studentName == "END") {
+                    break;
+                }
+
+                // ????? ???? ?????? ?? ???? accounts
+                ifstream accountsFile("accounts.txt");
+                bool studentExists = false;
+
+                if (accountsFile.is_open()) {
+                    string line;
+                    while (getline(accountsFile, line)) {
+                        stringstream ss(line);
+                        string fileUname, filePwd;
+                        int fileType;
+                        ss >> fileUname >> filePwd >> fileType;
+
+                        if (fileUname == studentName && fileType == 1) {
+                            studentExists = true;
+                            break;
+                        }
+                    }
+                    accountsFile.close();
+                }
+
+                if (!studentExists) {
+                    cout << "Error: Student with provided username not found." << endl;
+                    continue;
+                }
+
+                cout << "Enter grade for " << studentName << ": ";
+                cin >> grade;
+
+                classesFile << "Student: " << studentName << " Grade: " << grade << endl;
+                StudentOfClass.push_back(make_pair(studentName, grade));
+            }
+
+            classesFile.close();
+        }
+        else {
+            cerr << "Error: Unable to open Classes file for writing." << endl;
+        }
+    }
+
+    void addStudentsToClass(const string& professor, const string& className) {
+        ifstream classesFile("Classes.txt");
+        ofstream tempFile("tempClasses.txt", ios::app);
+        string line;
+        bool classExists = false;
+        bool inTargetClass = false;
+
+        if (classesFile.is_open() && tempFile.is_open()) {
+            while (getline(classesFile, line)) {
+                // Copy the line to the temporary file
+                tempFile << line << endl;
+
+                // Check if the current line matches the class we are looking for
+                if (line == "Professor: " + professor + " Class: " + className) {
+                    classExists = true;
+                    inTargetClass = true;
+                }
+                else if (line.find("Professor: ") != string::npos && inTargetClass) {
+                    // We reached a new class section, stop adding students
+                    inTargetClass = false;
+                }
+
+                // If we are in the target class section, keep adding students
+                if (inTargetClass) {
+                    string studentName;
+                    int grade;
+
+                    while (true) {
+                        cout << "Enter student name to add (or type 'END' to finish): ";
+                        cin >> studentName;
+
+                        if (studentName == "END") {
+                            break;
+                        }
+
+                        // Check if student exists in accounts file
+                        ifstream accountsFile("accounts.txt");
+                        bool studentExists = false;
+
+                        if (accountsFile.is_open()) {
+                            string accLine;
+                            while (getline(accountsFile, accLine)) {
+                                stringstream ss(accLine);
+                                string fileUname, filePwd;
+                                int fileType;
+                                ss >> fileUname >> filePwd >> fileType;
+
+                                if (fileUname == studentName) {
+                                    studentExists = true;
+                                    break;
+                                }
+                            }
+                            accountsFile.close();
+                        }
+
+                        if (!studentExists) {
+                            cout << "Error: Student with provided username not found." << endl;
+                            continue;
+                        }
+
+                        cout << "Enter grade for " << studentName << ": ";
+                        cin >> grade;
+
+                        tempFile << "Student: " << studentName << " Grade: " << grade << endl;
+                    }
+                }
+            }
+            classesFile.close();
+            tempFile.close();
+
+            if (classExists) {
+                // Replace the old classes file with the updated temporary file
+                remove("Classes.txt");
+                rename("tempClasses.txt", "Classes.txt");
+                cout << "Students added to the class successfully." << endl;
+            }
+            else {
+                remove("tempClasses.txt");
+                cout << "Error: Class with provided professor and name not found." << endl;
+            }
+        }
+        else {
+            cerr << "Error: Unable to open file for reading or writing." << endl;
+        }
+    }
+
+    void removeStudentsFromClass(const string& professor, const string& className) {
+        ifstream classesFile("Classes.txt");
+        ofstream tempFile("tempClasses.txt", ios::app);
+        string line;
+        bool classExists = false;
+        bool inTargetClass = false;
+        bool studentRemoved = false;
+
+        if (classesFile.is_open() && tempFile.is_open()) {
+            while (getline(classesFile, line)) {
+                // Check if the current line matches the class we are looking for
+                if (line == "Professor: " + professor + " Class: " + className) {
+                    classExists = true;
+                    inTargetClass = true;
+                    tempFile << line << endl;
+                }
+                else if (line.find("Professor: ") != string::npos && inTargetClass) {
+                    // We reached a new class section, stop removing students
+                    inTargetClass = false;
+                }
+
+                if (!inTargetClass) {
+                    // Copy the line to the temporary file if we are not in the target class
+                    tempFile << line << endl;
+                }
+                else {
+                    // If we are in the target class, ask for students to remove
+                    while (true) {
+                        string studentName;
+                        cout << "Enter student name to remove (or type 'END' to finish): ";
+                        cin >> studentName;
+
+                        if (studentName == "END") {
+                            break;
+                        }
+
+                        bool studentExists = false;
+                        vector<string> remainingStudents;
+
+                        // Rewind the file stream to the beginning of the target class section
+                        streampos pos = classesFile.tellg();
+
+                        while (getline(classesFile, line)) {
+                            if (line.find("Student: " + studentName) != string::npos) {
+                                studentExists = true;
+                                studentRemoved = true;
+                            }
+                            else if (line.find("Professor: ") != string::npos) {
+                                // Reached a new class section
+                                inTargetClass = false;
+                                break;
+                            }
+                            else {
+                                remainingStudents.push_back(line);
+                            }
+                        }
+
+                        if (studentExists) {
+                            cout << "Student " << studentName << " has been removed from the class." << endl;
+                            if (remainingStudents.empty()) {
+                                cout << "The class is now empty." << endl;
+                                break;
+                            }
+                            // Write remaining students back to temp file
+                            for (const string& student : remainingStudents) {
+                                tempFile << student << endl;
+                            }
+                        }
+                        else {
+                            cout << "Error: Student " << studentName << " not found in the class." << endl;
+                            classesFile.clear();
+                            classesFile.seekg(pos);
+                        }
+                    }
+                }
+            }
+            classesFile.close();
+            tempFile.close();
+
+            if (classExists) {
+                // Replace the old classes file with the updated temporary file
+                remove("Classes.txt");
+                rename("tempClasses.txt", "Classes.txt");
+
+                if (studentRemoved) {
+                    cout << "Selected students have been removed from the class." << endl;
+                }
+                else {
+                    cout << "No students were removed from the class." << endl;
+                }
+            }
+            else {
+                remove("tempClasses.txt");
+                cout << "Error: Class with provided professor and name not found." << endl;
+            }
+        }
+        else {
+            cerr << "Error: Unable to open file for reading or writing." << endl;
+        }
+    }
+
+    void editStudentGradesInClass(const string& professor, const string& className) {
+        ifstream classesFile("Classes.txt");
+        string line;
+        bool classExists = false;
+        bool inTargetClass = false;
+        bool studentsExist = false;
+
+        if (classesFile.is_open()) {
+            // Check if the class exists and if it has students
+            while (getline(classesFile, line)) {
+                if (line == "Professor: " + professor + " Class: " + className) {
+                    classExists = true;
+                    inTargetClass = true;
+                    continue;
+                }
+
+                if (inTargetClass && line.find("Professor: ") != string::npos) {
+                    inTargetClass = false;
+                }
+
+                if (inTargetClass && line.find("Student: ") != string::npos) {
+                    studentsExist = true;
+                }
+            }
+
+            classesFile.close();
+
+            if (!classExists) {
+                cout << "Error: Class with provided professor and name not found." << endl;
+                return;
+            }
+
+            if (!studentsExist) {
+                cout << "The class is empty." << endl;
+                return;
+            }
+
+            // Editing student grades
+            while (true) {
+                string inputStudentName;
+                cout << "Enter student name to edit grade (or type 'END' to finish): ";
+                cin >> inputStudentName;
+
+                if (inputStudentName == "END") {
+                    break;
+                }
+
+                bool studentFound = false;
+
+                classesFile.open("Classes.txt");
+                ofstream tempFile("tempClasses.txt");
+
+                if (classesFile.is_open() && tempFile.is_open()) {
+                    inTargetClass = false;
+
+                    while (getline(classesFile, line)) {
+                        if (line == "Professor: " + professor + " Class: " + className) {
+                            inTargetClass = true;
+                            tempFile << line << endl;
+                            continue;
+                        }
+
+                        if (inTargetClass && line.find("Professor: ") != string::npos) {
+                            inTargetClass = false;
+                        }
+
+                        if (inTargetClass && line.find("Student: " + inputStudentName + " ") != string::npos) {
+                            studentFound = true;
+                            string studentName, discard;
+                            int grade;
+                            stringstream ss(line);
+                            ss >> discard >> studentName >> discard >> grade;
+
+                            cout << "Enter new grade for " << studentName << ": ";
+                            int newGrade;
+                            cin >> newGrade;
+
+                            tempFile << "Student: " << studentName << " Grade: " << newGrade << endl;
+                        }
+                        else {
+                            tempFile << line << endl;
+                        }
+                    }
+
+                    classesFile.close();
+                    tempFile.close();
+
+                    remove("Classes.txt");
+                    rename("tempClasses.txt", "Classes.txt");
+
+                    if (studentFound) {
+                        cout << "Grade updated successfully for " << inputStudentName << "." << endl;
+                    }
+                    else {
+                        cout << "Error: Student " << inputStudentName << " not found in the class." << endl;
+                    }
+                }
+                else {
+                    cerr << "Error: Unable to open file for reading or writing." << endl;
+                    return;
+                }
+            }
+        }
+        else {
+            cerr << "Error: Unable to open file for reading." << endl;
+        }
+    }
+
+    void printClassDetails(const string& professor, const string& className) {
+        ifstream classesFile("Classes.txt");
+        string line;
+        bool classExists = false;
+        bool inTargetClass = false;
+
+        if (classesFile.is_open()) {
+            while (getline(classesFile, line)) {
+                if (line == "Professor: " + professor + " Class: " + className) {
+                    classExists = true;
+                    inTargetClass = true;
+                    cout << line << endl; // Print class header
+                    continue;
+                }
+
+                if (inTargetClass && line.find("Professor: ") != string::npos) {
+                    inTargetClass = false;
+                }
+
+                if (inTargetClass) {
+                    cout << line << endl; // Print student details
+                }
+            }
+
+            if (!classExists) {
+                cout << "Error: Class with provided professor and name not found." << endl;
+            }
+
+            classesFile.close();
+        }
+        else {
+            cerr << "Error: Unable to open file for reading." << endl;
+        }
+    }
+
+
+};
+
+
 
 
 int main() {
